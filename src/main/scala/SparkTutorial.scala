@@ -30,10 +30,22 @@ object SparkTutorial {
     val columns = df.columns.toList
 
     columns.foreach(column => {
-      val names = df.select(column).distinct.map(_.get(0).toString).collect.toList
-      println(names)
-    })
+      val current_column = column
+      val current_index = columns.indexOf(current_column)
 
+      if (current_index + 1 < columns.length) {
+        for (next_column <- (current_index + 1) until columns.length) {
+          println("Current column: " + current_column)
+          println("Next column: " + columns(next_column))
+          val listA = df.select(current_column).distinct.map(_.get(0).toString).collect.toList
+          val listB = df.select(columns(next_column)).distinct.map(_.get(0).toString).collect.toList
+          println(listA)
+          println(listB)
+          println()
+        }
+        println("--------------------------------------------------------------")
+      }
+    })
 
 
   }
