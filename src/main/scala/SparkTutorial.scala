@@ -20,30 +20,46 @@ object SparkTutorial {
     // Importing implicit encoders for standard library classes and tuples that are used as Dataset types
     import spark.implicits._
 
-    // Read Dataset from the file
+    // Read Dataset from the a file
     val df = spark.read
       .option("inferSchema", "true")
       .option("header", "true")
       .option("sep", ";")
       .csv("data/test_customer.csv")
 
+    // Get column list from Dataset
     val columns = df.columns.toList
 
+    // Iterate through each column of the DataSet
     columns.foreach(column => {
+      val current_index = columns.indexOf(column)
       val current_column = column
-      val current_index = columns.indexOf(current_column)
 
       if (current_index + 1 < columns.length) {
-        for (next_column <- (current_index + 1) until columns.length) {
-          println("Current column: " + current_column)
-          println("Next column: " + columns(next_column))
-          val listA = df.select(current_column).distinct.map(_.get(0).toString).collect.toList
-          val listB = df.select(columns(next_column)).distinct.map(_.get(0).toString).collect.toList
-          println(listA)
-          println(listB)
-          println()
+        // Again iterate through the remaining columns of the Dataset
+        for (next_index <- (current_index + 1) until columns.length) {
+          val next_column = columns(next_index)
+
+          // Check if the data types of two columns are same
+          if (df.schema.fields(current_index).dataType == df.schema.fields(next_index).dataType) {
+            //            println("Current column: " + current_column)
+            //            println("Next column: " + next_column)
+
+            // Get distinct column values
+            val setA = df.select(current_column).map(_.get(0).toString).collect.toSet
+            val setB = df.select(next_column).map(_.get(0).toString).collect.toSet
+
+            // Check if a column is a subset of the other one
+            println(current_column + " ⊆ " + next_column + " = " + setA.subsetOf(setB))
+            println(next_column + " ⊆ " + current_column + " = " + setB.subsetOf(setA))
+
+            //            println(setA)
+            //            println(setB)
+            //            println(setA.subsetOf(setB))
+            //            println(setB.subsetOf(setA))
+            //            println()
+          }
         }
-        println("--------------------------------------------------------------")
       }
     })
 
