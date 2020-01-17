@@ -1,3 +1,5 @@
+import java.io.File
+
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
 
@@ -20,49 +22,53 @@ object SparkTutorial {
     // Importing implicit encoders for standard library classes and tuples that are used as Dataset types
     import spark.implicits._
 
-    // Read Dataset from the a file
-    val df = spark.read
-      .option("inferSchema", "true")
-      .option("header", "true")
-      .option("sep", ";")
-      .csv("data/test_customer.csv")
+    // Get all CSV files
+    val files = getListOfFiles("data")
+    files.foreach(file => {
+      // Read Dataset from the a file
+      val df = spark.read
+        .option("inferSchema", "true")
+        .option("header", "true")
+        .option("sep", ";")
+        .csv(file)
 
-    // Get column list from Dataset
-    val columns = df.columns.toList
+      // Get column list from Dataset
+      val columns = df.columns.toList
 
-    // Iterate through each column of the DataSet
-    columns.foreach(column => {
-      val current_index = columns.indexOf(column)
-      val current_column = column
+      // Iterate through each column of the DataSet
+      columns.foreach(column => {
+        val current_index = columns.indexOf(column)
+        val current_column = column
 
-      if (current_index + 1 < columns.length) {
-        // Again iterate through the remaining columns of the Dataset
-        for (next_index <- (current_index + 1) until columns.length) {
-          val next_column = columns(next_index)
+        if (current_index + 1 < columns.length) {
+          // Again iterate through the remaining columns of the Dataset
+          for (next_index <- (current_index + 1) until columns.length) {
+            val next_column = columns(next_index)
 
-          // Check if the data types of two columns are same
-          if (df.schema.fields(current_index).dataType == df.schema.fields(next_index).dataType) {
-            //            println("Current column: " + current_column)
-            //            println("Next column: " + next_column)
+            // Check if the data types of two columns are same
+            if (df.schema.fields(current_index).dataType == df.schema.fields(next_index).dataType) {
+              //            println("Current column: " + current_column)
+              //            println("Next column: " + next_column)
 
-            // Get distinct column values
-            val setA = df.select(current_column).map(_.get(0).toString).collect.toSet
-            val setB = df.select(next_column).map(_.get(0).toString).collect.toSet
+              // Get distinct column values
+              val setA = df.select(current_column).map(_.get(0).toString).collect.toSet
+              val setB = df.select(next_column).map(_.get(0).toString).collect.toSet
 
-            // Check if a column is a subset of the other one
-            println(current_column + " ⊆ " + next_column + " = " + setA.subsetOf(setB))
-            println(next_column + " ⊆ " + current_column + " = " + setB.subsetOf(setA))
-
-            //            println(setA)
-            //            println(setB)
-            //            println(setA.subsetOf(setB))
-            //            println(setB.subsetOf(setA))
-            //            println()
+              // Check if a column is a subset of the other one
+              println(current_column + " ⊆ " + next_column + " = " + setA.subsetOf(setB))
+              println(next_column + " ⊆ " + current_column + " = " + setB.subsetOf(setA))
+            }
           }
         }
-      }
+      })
+
+      println("--------------------------------------------------------")
     })
+  }
 
-
+  def getListOfFiles(dir: String): List[String] = {
+    val file = new File(dir)
+    file.listFiles.filter(_.isFile)
+      .map(_.getPath).toList
   }
 }
