@@ -1,8 +1,11 @@
 import java.io.File
 
+import javax.naming.spi.DirStateFactory.Result
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.DataType
+
+import scala.collection.mutable
 
 object SparkTutorial {
   def main(args: Array[String]): Unit = {
@@ -25,10 +28,10 @@ object SparkTutorial {
 
     // Get all CSV files
     val files = getListOfFiles("data")
-    println(files)
+    val result = scala.collection.mutable.Map[String, String]()
 
     files.foreach(file => {
-      println(file)
+      println("\n==================== Starting with file: " + file + " ====================")
       // Get current file index
       val current_file_index = files.indexOf(file)
 
@@ -41,12 +44,12 @@ object SparkTutorial {
 
       // Get column list from Dataset
       val columns = df.columns.toList
-      println(columns)
 
       // Iterate through each column of the DataSet
       columns.foreach(column => {
         val current_index = columns.indexOf(column)
         val current_column = column
+        println("\n-------------------- Checking for column: " + current_column + " --------------------\n")
 
         // Get distinct column values
         val setA = df.select(current_column).map(_.get(0).toString).collect.toSet
@@ -65,28 +68,40 @@ object SparkTutorial {
               // Check if a column is a subset of the other one
               println(current_column + " ⊆ " + next_column + " = " + setA.subsetOf(setB))
               println(next_column + " ⊆ " + current_column + " = " + setB.subsetOf(setA))
+
+              if (setA.subsetOf(setB)) {
+                if (result.contains(next_column)) {
+                  result(next_column) = result(next_column) + ", " + current_column
+                }
+                else result += (next_column -> current_column)
+              }
+              if (setB.subsetOf(setA)) {
+                if (result.contains(current_column)) {
+                  result(current_column) = result(current_column) + ", " + next_column
+                }
+                else result += (current_column -> next_column)
+              }
             }
           }
         }
 
         // Check inclusion dependency in other files
-        println("---------------------- Other Files -----------------------")
-        println(current_column)
-        findSubsetInOtherFiles(setA, dataTypeSetA, current_column, files, current_file_index, spark)
-        println("---------------------- Other Files End -----------------------")
-        println()
+        findSubsetInOtherFiles(setA, dataTypeSetA, current_column, files, current_file_index, result, spark)
       })
-      println("--------------------------------------------------------")
     })
+
+    println("\nResult:")
+    for ((k,v) <- result) printf("%s < %s\n", k, v)
   }
 
-  def findSubsetInOtherFiles(setA: Set[String], dataTypeSetA: DataType, current_column: String, files: List[String], current_file_index: Int, spark: SparkSession): Unit = {
+  def findSubsetInOtherFiles(setA: Set[String], dataTypeSetA: DataType, current_column: String, files: List[String],
+                             current_file_index: Int, result: mutable.Map[String, String], spark: SparkSession): Unit = {
     // Importing implicit encoders for standard library classes and tuples that are used as Dataset types
     import spark.implicits._
 
     for (next_file_index <- (current_file_index + 1) until files.length) {
       val next_file = files(next_file_index)
-      println(next_file)
+      println("-------------------- Checking in file: " + next_file + " --------------------")
 
       // Read Dataset from the a file
       val df = spark.read
@@ -97,7 +112,6 @@ object SparkTutorial {
 
       // Get column list from Dataset
       val columns = df.columns.toList
-      println(columns)
 
       columns.foreach(column => {
         val next_index = columns.indexOf(column)
@@ -109,6 +123,19 @@ object SparkTutorial {
           // Check if a column is a subset of the other one
           println(current_column + " ⊆ " + column + " = " + setA.subsetOf(setB))
           println(column + " ⊆ " + current_column + " = " + setB.subsetOf(setA))
+
+          if (setA.subsetOf(setB)) {
+            if (result.contains(column)) {
+              result(column) = result(column) + ", " + current_column
+            }
+            else result += (column -> current_column)
+          }
+          if (setB.subsetOf(setA)) {
+            if (result.contains(current_column)) {
+              result(current_column) = result(current_column) + ", " + column
+            }
+            else result += (current_column -> column)
+          }
         }
       })
     }
@@ -120,3 +147,5 @@ object SparkTutorial {
       .map(_.getPath).toList
   }
 }
+
+
