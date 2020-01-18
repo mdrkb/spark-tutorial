@@ -1,14 +1,32 @@
 import java.io.File
-
-import javax.naming.spi.DirStateFactory.Result
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.DataType
-
 import scala.collection.mutable
 
 object SparkTutorial {
   def main(args: Array[String]): Unit = {
+
+    var data_dir = "./TPCH"
+    var cores = "4"
+
+    if (args.length == 2 || args.length == 4) {
+      if (args(0) == "--path") data_dir = args(1)
+      if (args(0) == "--cores") cores = args(1)
+    }
+    else if (args.length == 4) {
+      if (args(0) == "--path") data_dir = args(1)
+      else data_dir = args(3)
+      if (args(0) == "--cores") cores = args(1)
+      else cores = args(3)
+    }
+    else if (args.length > 0) {
+      println("Invalid arguments!")
+      println("Try: java -jar YourAlgorithmName.jar --path TPCH --cores 4")
+      System.exit(1)
+    }
+
+    printf("\nProgram staring with %s cores...\n", cores)
 
     Logger.getLogger("org").setLevel(Level.OFF)
     Logger.getLogger("akka").setLevel(Level.OFF)
@@ -17,7 +35,7 @@ object SparkTutorial {
     val sparkBuilder = SparkSession
       .builder()
       .appName("SparkTutorial")
-      .master("local[4]")
+      .master("local[" + cores + "]")
     val spark = sparkBuilder.getOrCreate()
 
     // Set the default number of shuffle partitions
@@ -27,7 +45,7 @@ object SparkTutorial {
     import spark.implicits._
 
     // Get all CSV files
-    val files = getListOfFiles("data")
+    val files = getListOfFiles(data_dir)
     val result = scala.collection.mutable.Map[String, String]()
 
     files.foreach(file => {
@@ -91,7 +109,7 @@ object SparkTutorial {
     })
 
     println("\nResult:")
-    for ((k,v) <- result) printf("%s < %s\n", k, v)
+    for ((k, v) <- result) printf("%s < %s\n", k, v)
   }
 
   def findSubsetInOtherFiles(setA: Set[String], dataTypeSetA: DataType, current_column: String, files: List[String],
